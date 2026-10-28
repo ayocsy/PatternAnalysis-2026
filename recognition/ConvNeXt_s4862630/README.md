@@ -4,7 +4,7 @@
 **Course:** COMP3710, 2026  
 **Task:** Hard difficulty, AD versus normal control (NC; also called CN in the brief)
 
-> **Draft status:** Results below are from completed Rangpur experiments. Python/package versions and training configurations have been confirmed from the supplied Rangpur outputs. Before submission, replace the feasibility section with the review actually discussed with the tutor. The student has confirmed that the compulsory feasibility check-off has not yet been completed. The final pretrained-model failure figure and patient CSV have been audited and incorporated.
+> **Draft status:** Results below are from completed Rangpur experiments. Python/package versions and training configurations have been confirmed from the supplied Rangpur outputs. The feasibility consultation has been completed, as reported by the student. The tutor confirmed that pretrained weights are permitted and suggested further tuning of the scratch-trained ConvNeXt; the additional experiment is planned and has not yet produced results. The final pretrained-model failure figure and patient CSV have been audited and incorporated.
 
 ## 1. Problem and main finding
 
@@ -63,7 +63,7 @@ Preprocessing converts each image to grayscale, resizes it to 224×210, pads sev
 
 ## 4. Feasibility review
 
-**Status: retrospective draft for a tutor consultation; the compulsory check-off is pending. After the consultation, record the actual date and feedback.** Completion of the required consultation cannot be established from the experiment logs. Do not present this reconstructed section as evidence of an earlier check-off.
+**Status: feasibility consultation completed, as reported by the student.** The consultation covered data preprocessing, model choice, training procedure and experimental results. The review took place after the reported training runs; this section does not imply approval before training. The exact consultation date and tutor name have not been recorded here.
 
 ### User need and scope
 
@@ -87,7 +87,13 @@ The data audit makes the experiment feasible but exposes patient leakage in the 
 
 The completed development experiment combines pretrained initialization, conservative fine-tuning, patient-uniform sampling and light label smoothing. A practical next investigation is to verify its remaining false negatives and image-quality sensitivity, with a fixed GPU budget and development decisions made using validation data. Any new evaluation should acknowledge that the current test set has already been examined; fresh independent patients are needed for a new confirmatory claim. The fallback is to retain the simpler baseline as a research prototype and require human review, rather than claim that its acceptance rule meets the 90% test target.
 
-**Consultation record — fill in from your actual check-off:** date, tutor, submitted review, feedback and response.
+### Tutor feedback and planned response
+
+During the feasibility consultation, I explained the data preprocessing, model choice, training process and results. The tutor described the work as solid, confirmed that using pretrained parameter weights is permitted, and suggested further tuning of ConvNeXt trained from scratch.
+
+In response, I plan a controlled scratch-training experiment using random initialization. A proposed first comparison lowers the initial learning rate from 0.0003 to 0.0001 while keeping the patient split, seed, preprocessing, weight decay and other settings fixed. This learning-rate choice is a project response to the feedback, not a setting prescribed by the tutor. I will compare validation patient macro-F1, AD recall and training/validation curves, preserving the existing runs as references. A lower learning rate is not guaranteed to improve generalization.
+
+**Experiment status:** planned, not yet run or evaluated. All numerical results elsewhere in this report remain those of the three completed experiments. Any additional checkpoint and operating settings will be selected using validation data rather than repeated test-set tuning. The previously examined test cohort remains a limitation for confirmatory evaluation.
 
 ## 5. Training and evaluation protocol
 
