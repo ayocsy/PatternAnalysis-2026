@@ -63,8 +63,6 @@ Preprocessing converts each image to grayscale, resizes it to 224×210, pads sev
 
 ## 4. Feasibility review
 
-**Status: feasibility consultation completed, as reported by the student.** The consultation covered data preprocessing, model choice, training procedure and experimental results. The review took place after the reported training runs; this section does not imply approval before training. The exact consultation date and tutor name have not been recorded here.
-
 ### User need and scope
 
 The intended user is an imaging specialist reviewing screening predictions. The prototype investigates AD/NC classification and whether confidence can flag ambiguous cases. It processes supplied 2D JPEG slices and evaluates patient-level outputs. It does not establish clinical diagnosis or validated clinical automation.
