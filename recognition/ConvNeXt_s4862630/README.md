@@ -311,6 +311,42 @@ All five errors pass the saved rejection cutoff of zero. The two AD misses accou
 
 The figure shows original representative slices, not saliency maps. Patient means cannot establish that every constituent slice agrees. Image quality, slice position, limited learned disease features and acquisition shortcuts are hypotheses requiring additional evidence; these panels cannot establish a clinical cause. No thresholds or weights were changed after this error inspection.
 
+### Slice- and scan-level audit of the final false negatives
+
+To investigate whether patient averaging concealed conflicting predictions,
+I inspected every evaluated slice from the final model's two AD false
+negatives using the frozen calibration settings.
+
+| Patient | Scan | Slices | Mean P(AD) | Slice P(AD) range | Slices predicting AD at threshold 0.66 |
+|---|---|---:|---:|---|---:|
+| 168_S_6843 | 1275415 | 20 | 0.0273 | 0.0262–0.0292 | 0/20 |
+| 032_S_6600 | 1061844 | 20 | 0.0308 | 0.0195–0.0661 | 0/20 |
+| 032_S_6600 | 1259263 | 20 | 0.0712 | 0.0230–0.3810 | 0/20 |
+
+For patient 168_S_6843, all 20 slices produced tightly clustered, low AD
+probabilities. The patient-level false negative therefore reflects
+consistent model behaviour across the included scan, rather than averaging
+a mixture of opposing predictions.
+
+For patient 032_S_6600, the error persists across two scans and 40 slices.
+Scan 1259263 shows greater variation, reaching P(AD)=0.3810, but every
+slice remains below both the saved slice threshold of 0.66 and the ordinary
+threshold of 0.5. Both scan means are also below the saved scan threshold
+of 0.445. Averaging produces patient P(AD)=0.0510 and does not correct the
+shared classification error.
+
+These cases show that agreement across correlated slices, and even across
+two scans, does not establish correctness. The resulting assigned NC
+probabilities are approximately 0.9727 and 0.9490. Both errors pass the
+saved rejection cutoff of zero; a low-confidence review policy can therefore
+leave highly confident false negatives unflagged.
+
+This audit establishes the consistency of the errors, but not their
+anatomical or acquisition-related cause. Source-label verification,
+image-quality comparisons and acquisition-metadata analysis remain needed
+to distinguish possible explanations. No model weights, calibration
+settings or decision thresholds were changed following this inspection.
+
 ### Earlier scratch-model comparisons
 
 The following figures and probabilities belong to the baseline and epoch-18 scratch ConvNeXt. They provide developmental comparisons and must not be relabeled as final pretrained results.
