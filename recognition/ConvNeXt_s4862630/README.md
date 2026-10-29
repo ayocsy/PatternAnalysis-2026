@@ -4,13 +4,13 @@
 **Course:** COMP3710, 2026  
 **Task:** Hard difficulty, AD versus normal control (NC; also called CN in the brief)
 
-> **Draft status:** Results below are from completed Rangpur experiments. Python/package versions and training configurations have been confirmed from the supplied Rangpur outputs. The feasibility consultation has been completed, as reported by the student. The tutor confirmed that pretrained weights are permitted and suggested further tuning of the scratch-trained ConvNeXt; the additional experiment is planned and has not yet produced results. The final pretrained-model failure figure and patient CSV have been audited and incorporated.
+> **Experiment status:** The three main training pipelines and subsequent scratch-training comparisons are complete. Lower learning rate, higher weight decay and patient-uniform sampling did not improve validation patient macro-F1 over the original scratch configuration. The pretrained ConvNeXt remains the strongest reported pipeline. Additional scratch variants are compared using validation results only.
 
 ## 1. Problem and main finding
 
 This project compares a single-channel ConvNeXt-Tiny classifier with a smaller conventional CNN on ADNI brain MRI slices. The prototype predicts Alzheimer’s disease (AD) or normal control (NC), combines predictions across slices, and tests whether calibrated probabilities can identify cases needing human review. The engineering question is whether the larger architecture improves useful predictions and confidence enough to justify its extra computing cost.
 
-Three experiments are reported: a scratch-trained baseline, scratch-trained ConvNeXt, and a pretrained ConvNeXt fine-tuning experiment. With frozen validation-selected settings, patient test accuracy is **82.35%, 71.57% and 91.18%**, respectively. The final pretrained ConvNeXt correctly classifies **93/102 patients**, with seven NC false positives and two AD false negatives. Its patient macro-F1 is **0.9028**, AUROC **0.9517**, and AD recall **0.9394**.
+Three main pipelines are reported, alongside additional validation-only scratch-training comparisons: a scratch-trained baseline, scratch-trained ConvNeXt, and a pretrained ConvNeXt fine-tuning experiment. With frozen validation-selected settings, patient test accuracy is **82.35%, 71.57% and 91.18%**, respectively. The final pretrained ConvNeXt correctly classifies **93/102 patients**, with seven NC false positives and two AD false negatives. Its patient macro-F1 is **0.9028**, AUROC **0.9517**, and AD recall **0.9394**.
 
 **The final pretrained ConvNeXt meets the assignment's minimum 80% test accuracy at slice, scan and patient levels**, both at raw threshold 0.5 and with the saved validation-selected thresholds. The earlier scratch ConvNeXt did not meet the target and remains in this report as a developmental comparison.
 
@@ -85,13 +85,11 @@ The data audit makes the experiment feasible but exposes patient leakage in the 
 
 The completed development experiment combines pretrained initialization, conservative fine-tuning, patient-uniform sampling and light label smoothing. A practical next investigation is to verify its remaining false negatives and image-quality sensitivity, with a fixed GPU budget and development decisions made using validation data. Any new evaluation should acknowledge that the current test set has already been examined; fresh independent patients are needed for a new confirmatory claim. The fallback is to retain the simpler baseline as a research prototype and require human review, rather than claim that its acceptance rule meets the 90% test target.
 
-### Tutor feedback and planned response
+### Tutor feedback and completed response
 
-During the feasibility consultation, I explained the data preprocessing, model choice, training process and results. The tutor described the work as solid, confirmed that using pretrained parameter weights is permitted, and suggested further tuning of ConvNeXt trained from scratch.
+During the feasibility consultation, I explained the data preprocessing, model choice, training process and results. The tutor confirmed that pretrained parameter weights are permitted and suggested further tuning of ConvNeXt trained from scratch.
 
-In response, I plan a controlled scratch-training experiment using random initialization. A proposed first comparison lowers the initial learning rate from 0.0003 to 0.0001 while keeping the patient split, seed, preprocessing, weight decay and other settings fixed. This learning-rate choice is a project response to the feedback, not a setting prescribed by the tutor. I will compare validation patient macro-F1, AD recall and training/validation curves, preserving the existing runs as references. A lower learning rate is not guaranteed to improve generalization.
-
-**Experiment status:** planned, not yet run or evaluated. All numerical results elsewhere in this report remain those of the three completed experiments. Any additional checkpoint and operating settings will be selected using validation data rather than repeated test-set tuning. The previously examined test cohort remains a limitation for confirmatory evaluation.
+I subsequently compared a lower learning rate, higher weight decay and patient-uniform sampling with the original scratch recipe. None improved validation patient macro-F1. The completed comparisons and their limitations are documented below. The original scratch run is retained as the developmental reference, and pretrained ConvNeXt remains the preferred reported pipeline.
 
 ## 5. Training and evaluation protocol
 
@@ -145,6 +143,50 @@ The Rangpur training version uses `--skip-test` so that training does not evalua
 For patient rejection, assigned-class probability is p_AD for an AD prediction or 1−p_AD for an NC prediction. Validation selects the highest-coverage rule reaching 90% accepted accuracy and at least 50% coverage. A patient is routed to review when its assigned-class probability is below the saved cutoff. With a non-0.5 decision threshold, this quantity can be below 0.5 for the assigned AD class; it is not automatically the maximum class probability.
 
 Checkpoint hashes, split manifests and inference precision are stored with calibration settings. Final testing checks these identities and applies the settings unchanged. Existing calibration and test reports are protected against accidental overwrite. The example demo subsequently loads the same weights and settings; it does not fit new parameters.
+
+### Completed scratch-training comparisons
+
+Following the feasibility consultation, I evaluated three changes to the original scratch-trained ConvNeXt: lowering the learning rate from 0.0003 to 0.0001, increasing weight decay from 0.05 to 0.10, and using patient-uniform sampling. Each comparison retained the patient split and seed 3710. Checkpoints were selected using validation patient macro-F1 at the raw decision threshold of 0.5.
+
+| Training recipe | Best epoch | Last epoch | Patient accuracy | Patient macro-F1 | AD recall | AUROC |
+|---|---:|---:|---:|---:|---:|---:|
+| Original scratch ConvNeXt | 18 | 26 | **0.8333** | **0.8111** | **0.7576** | **0.8849** |
+| Lower learning rate: 0.0001 | 20 | 28 | 0.8235 | 0.7951 | 0.6970 | 0.8353 |
+| Higher weight decay: 0.10 | 12 | 20 | 0.8235 | 0.7984 | 0.7273 | 0.8327 |
+| Patient-uniform sampling | 2 | 10 | 0.7941 | 0.7666 | 0.6970 | 0.8261 |
+
+All results in this table are validation results without temperature scaling or threshold tuning. They must not be directly compared with the tuned test results elsewhere in this report.
+
+None of the changes improved the checkpoint-selection metric. Relative to the original macro-F1 of 0.8111, the lower learning rate achieved 0.7951, higher weight decay achieved 0.7984, and patient-uniform sampling achieved 0.7666. The original scratch configuration therefore remains the preferred scratch recipe among those tested.
+
+| Scratch recipe | Training slice loss at selected epoch | Validation slice loss at selected epoch |
+|---|---:|---:|
+| Original | 0.1037 | 0.8875 |
+| Lower learning rate | 0.1380 | 0.8715 |
+| Higher weight decay | 0.2257 | 0.7101 |
+| Patient-uniform sampling | 0.5166 | 0.5365 |
+
+Higher weight decay reduced validation slice cross-entropy at the selected checkpoint from 0.8875 to 0.7101, but patient macro-F1 and AUROC decreased. Patient-uniform sampling also achieved lower validation loss while producing weaker patient classification. These results illustrate that lower slice-level loss does not necessarily produce better patient-level discrimination. Each row uses its own selected epoch; the losses are not matched-epoch comparisons.
+
+Patient-uniform sampling selected its best checkpoint at epoch 2 and stopped at epoch 10. Under this training recipe, it did not improve validation performance. This does not establish that patient-uniform sampling is generally ineffective or identify why it underperformed. Jobs 711743 and 712575 produced byte-identical history files with seed 3710. They are treated as a same-seed repeat of one experiment, not independent evidence across seeds.
+
+The lower-learning-rate run is job 711173; the higher-weight-decay run is job 711243. These comparisons use one seed and one patient split. They support a limited comparison of the tested configurations rather than a general conclusion about optimal hyperparameters. No additional test results are reported for these scratch variants.
+
+### Training behaviour
+
+![Baseline training curves](figures/baseline_training_curves.png)
+
+*Baseline CNN: slice-level training/validation cross-entropy and validation patient macro-F1.*
+
+![Scratch ConvNeXt training curves](figures/convnext_scratch_training_curves.png)
+
+*Original scratch ConvNeXt: slice-level training/validation cross-entropy and validation patient macro-F1.*
+
+![Pretrained ConvNeXt training curves](figures/convnext_pretrained_training_curves.png)
+
+*Pretrained ConvNeXt: training loss with label smoothing, ordinary validation cross-entropy and validation patient macro-F1.*
+
+Checkpoints are selected by patient macro-F1, so the selected epoch need not coincide with minimum validation loss. At the selected scratch ConvNeXt checkpoint, training slice loss is 0.1037 and validation slice loss is 0.8875. This gap is consistent with weaker generalization, although it does not identify a specific cause. The pretrained run uses label smoothing for training and ordinary cross-entropy for validation; its training and validation losses use different objectives and should be interpreted accordingly.
 
 ## 6. Held-out test results
 
@@ -212,6 +254,26 @@ Lower NLL and Brier scores are better. Temperature scaling improves patient NLL 
 | ConvNeXt pretrained | 102 / 102 | 0.9216 | 102 / 102 | 1.0000 | 0.9118 | 9 |
 
 Both scratch-model rules met the validation target but failed it on test. The pretrained model already reached 90% validation accuracy without rejecting anyone, so the maximum-coverage selector chose cutoff 0. Its test accepted accuracy is therefore identical to ordinary patient accuracy: 93/102 (0.9118). This reaches the experimental point target but routes no ambiguous cases to review and retains all seven false positives and two false negatives. It does not demonstrate reliable uncertainty discrimination or establish a clinical safety guarantee. The 90% accuracy and 50% coverage criteria are project choices, not numerical requirements specified by the assignment.
+
+### Reliability, confusion and risk–coverage figures
+
+The following figures were produced by the frozen test evaluation. Reliability panels compare mean predicted AD probability with observed AD frequency, and confusion matrices use the validation-selected class thresholds. Sparse reliability bins can be unstable with only 102 test patients. Curves over test rejection cutoffs are descriptive diagnostics; they are not used to select a replacement operating rule.
+
+![Baseline reliability and confusion matrices](figures/baseline_test_reliability_confusion.png)
+
+![Scratch ConvNeXt reliability and confusion matrices](figures/convnext_scratch_test_reliability_confusion.png)
+
+![Pretrained ConvNeXt reliability and confusion matrices](figures/convnext_pretrained_test_reliability_confusion.png)
+
+![Baseline patient ROC and risk–coverage](figures/baseline_test_roc_coverage.png)
+
+![Scratch ConvNeXt patient ROC and risk–coverage](figures/convnext_scratch_test_roc_coverage.png)
+
+![Pretrained ConvNeXt patient ROC and risk–coverage](figures/convnext_pretrained_test_roc_coverage.png)
+
+ROC curves describe discrimination across class thresholds. Risk–coverage curves describe the error rate among accepted predictions as the rejection cutoff changes, while retaining the saved class-decision threshold. They answer different questions. Successful rejection would reduce accepted-case risk while retaining useful coverage; AUROC alone does not demonstrate this.
+
+At the frozen operating points, baseline accepts 93/102 patients with 0.8387 accepted accuracy, scratch ConvNeXt accepts 68/102 with 0.8382, and pretrained ConvNeXt accepts all 102 with 0.9118. The final model's zero cutoff provides no selective routing benefit. Its two false negatives have assigned NC probabilities of approximately 0.9727 and 0.9490, showing that serious errors can remain highly confident. No new cutoff is selected from these test figures.
 
 ## 7. Computational cost
 
@@ -303,7 +365,10 @@ This study has one seed per recipe, 102 test patients, no external cohort and no
 | `predict.py` | Selected-patient inference using saved weights and calibration |
 | `predict_demo.slurm` | Baseline/ConvNeXt example on patient 168_S_6086 |
 | `requirements-lock.txt` | Exact package snapshot from the Rangpur experiment environment |
-| `figures/` | Report figures |
+| `convnext_scratch_lr1e4.slurm` | Validation-only lower-learning-rate scratch experiment |
+| `convnext_scratch_wd010.slurm` | Validation-only stronger-weight-decay scratch experiment |
+| `train_patient_uniform.py` / `convnext_patient_uniform.slurm` | Patient-uniform scratch training and job submission |
+| `figures/` | Architecture, training, reliability, risk–coverage and example figures |
 
 ### Recorded environment
 
@@ -402,13 +467,13 @@ ChatGPT/Codex assisted with interpreting the assignment, explaining CNN and Conv
 
 Verification included inspecting the supplied code and data-audit outputs, running the models and evaluation jobs on Rangpur, comparing printed metrics with saved JSON/CSV outputs, inspecting qualitative examples, and running the selected-patient demo with both checkpoints. The assistant performed local syntax, numerical and mocked orchestration checks for the evaluation and prediction utilities; those local checks did not exercise actual CUDA inference. The Rangpur runs supplied the real GPU evidence, including a successful fine-tuning smoke run and completed training/validation/test inference. The transfer utility automatically checks tensor coverage and numerical backbone equivalence before training. No claim is made that a comprehensive independent test suite or clinical validation was completed.
 
-**Before submission, confirm that this disclosure matches the tools you actually used and the checks you personally completed.** The submitted implementation, numerical claims and final interpretation remain the student's responsibility.
 
 ## 12. References
 
 1. Liu, Z., Mao, H., Wu, C.-Y., Feichtenhofer, C., Darrell, T. and Xie, S. (2022). *A ConvNet for the 2020s*. CVPR, pp. 11976–11986. [Paper](https://openaccess.thecvf.com/content/CVPR2022/html/Liu_A_ConvNet_for_the_2020s_CVPR_2022_paper.html). The architecture follows the ConvNeXt design with task-specific input/output changes and a smaller project training recipe.
 2. Guo, C., Pleiss, G., Sun, Y. and Weinberger, K. Q. (2017). *On Calibration of Modern Neural Networks*. ICML, PMLR 70, pp. 1321–1330. [Paper](https://proceedings.mlr.press/v70/guo17a.html). Temperature scaling is adapted here to minimize validation patient NLL after slice aggregation.
-3. COMP3710 teaching team (2026). *Working Prototype Project in the Era of Artificial Intelligence*, supplied draft v2 assignment brief. Requirements and domain investigation are taken from this supplied document; check the current course submission instructions before submitting.
+3. COMP3710 teaching team (2026). *Working Prototype Project in the Era of Artificial Intelligence*, Version 2.5 Final Assessment Specification. Requirements and domain investigation follow this specification.
 4. Course-provided ADNI JPEG subset and `meta_data_with_label.json`, available under `/home/groups/comp3710/ADNI`. Dataset counts and split statistics are from the project audit; this report does not infer additional acquisition provenance beyond the supplied metadata.
 
 5. PyTorch contributors. *Torchvision ConvNeXt-Tiny pretrained weights and model implementation*. [Documentation](https://docs.pytorch.org/vision/main/models/generated/torchvision.models.convnext_tiny.html) and [official source](https://github.com/pytorch/vision/blob/main/torchvision/models/convnext.py). ImageNet-1K V1 weights initialize the final custom-model backbone; torchvision key mapping and stem adaptation are documented in `convnext_transfer.py`.
+
